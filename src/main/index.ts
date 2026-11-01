@@ -168,7 +168,13 @@ async function bootstrap(): Promise<void> {
   });
 
   app.on('second-instance', () => windows?.showMain());
-  if (IS_MAC) app.on('activate', () => windows?.showMain()); // Dock 点击重开主窗
+  // mac：Dock 点击重开主窗。注意 activate 在首次启动时也会触发一次，
+  // --hidden 自启时必须吞掉这一次，否则登录即弹主窗
+  let suppressFirstActivate = hidden;
+  if (IS_MAC) app.on('activate', () => {
+    if (suppressFirstActivate) { suppressFirstActivate = false; return; }
+    windows?.showMain();
+  });
   app.on('window-all-closed', () => { /* 托盘应用：不退出 */ });
   app.on('before-quit', () => {
     unregisterAllShortcuts();

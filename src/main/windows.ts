@@ -174,7 +174,14 @@ export class AppWindowController implements WindowOps {
     if (this.main!.isMinimized()) this.main!.restore();
     this.main!.show();
     this.main!.focus();
-    if (payload) this.main!.webContents.send(Ipc.EventShowMain, payload);
+    if (payload) {
+      const wc = this.main!.webContents;
+      const send = () => { if (!wc.isDestroyed()) wc.send(Ipc.EventShowMain, payload); };
+      // mac 关窗后重建：渲染层尚未挂 onShowMain 监听，IPC 不排队 → 等页面加载完再发，
+      // 否则 设置…/通知定位/快添预填 在重开路径上静默丢失
+      if (wc.isLoadingMainFrame()) wc.once('did-finish-load', send);
+      else send();
+    }
   }
 
   /** 规格 §5.6：首次唤起创建、之后复用隐藏；唤起位置=光标所在显示器居中 */
