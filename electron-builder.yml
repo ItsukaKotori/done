@@ -1,0 +1,33 @@
+appId: com.whchem.todo
+productName: WhchemTodo
+directories:
+  buildResources: build
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!docs/*'
+  - '!tests/*'
+  - '!scripts/*'
+  - '!.superpowers/**'
+  - '!build/**'
+  # resources/icon.png 运行时被托盘引用，必须随包（asar 内 nativeImage 可读）
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.gitignore,tsconfig.json,tsconfig.node.json,tsconfig.web.json,vitest.config.ts,components.json}'
+asarUnpack:
+  - node_modules/better-sqlite3/**   # 规格 §8：原生二进制不进 asar
+# better-sqlite3@13 为 N-API prebuildify（随包携带全运行时 .node），
+# 重链会触发 node-gyp 源码编译（本机无 Python/VS）；禁用后直接复用预编译产物
+npmRebuild: false
+win:
+  icon: build/icon.ico
+  target:
+    - target: nsis
+      arch: [x64]
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  shortcutName: WhchemTodo
+publish: null   # 规格 §8：预留自动更新配置位（v1 不启用）

@@ -1,0 +1,221 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Radix 状态变体：shadcn 组件用 `data-active:` / `data-checked:` / `data-open:` 等工具类，
+ * 这些是自定义变体，必须映射到 Radix 实际写入的 data-state / data-orientation 属性，
+ * 否则选中态、勾选态、弹窗动画全部不生效。
+ */
+@custom-variant data-open (&:is([data-state="open"], [data-open]));
+@custom-variant data-closed (&:is([data-state="closed"], [data-closed]));
+@custom-variant data-active (&:is([data-state="active"], [data-active]));
+@custom-variant data-checked (&:is([data-state="checked"], [data-checked]));
+@custom-variant data-unchecked (&:is([data-state="unchecked"], [data-unchecked]));
+@custom-variant data-disabled (&:is([data-disabled], [data-state="disabled"]));
+@custom-variant data-selected (&:is([data-selected], [data-state="selected"]));
+@custom-variant data-placeholder (&:is([data-placeholder], [data-state="placeholder"]));
+@custom-variant data-horizontal (&:is([data-orientation="horizontal"], [data-horizontal]));
+@custom-variant data-vertical (&:is([data-orientation="vertical"], [data-vertical]));
+@custom-variant data-inset (&:is([data-inset], [data-state="inset"]));
+
+/* ============================================================
+ * 「指示剂」主题：界面 90% 安静，颜色只在编码时间状态时出现。
+ * 墨蓝 = 行动（primary），琥珀 = 今日到期（due），信号红 = 逾期（overdue）。
+ * 状态色只用于指示点/日期数字/徽标，不染按钮不染标题。
+ * ============================================================ */
+
+:root {
+  color-scheme: light;
+  --radius: 0.5rem; /* 比默认更方的圆角：仪器感 */
+
+  /* 中性：微暖纸白底 × 冷墨字 */
+  --background: oklch(0.985 0.004 95);
+  --foreground: oklch(0.24 0.02 260);
+  --card: oklch(0.995 0.002 95);
+  --card-foreground: oklch(0.24 0.02 260);
+  --popover: oklch(0.995 0.003 95);
+  --popover-foreground: oklch(0.24 0.02 260);
+  --secondary: oklch(0.95 0.006 260);
+  --secondary-foreground: oklch(0.24 0.02 260);
+  --muted: oklch(0.955 0.005 95);
+  --muted-foreground: oklch(0.55 0.015 260);
+  --accent: oklch(0.94 0.012 262);
+  --accent-foreground: oklch(0.24 0.02 260);
+  --border: oklch(0.90 0.006 260);
+  --input: oklch(0.90 0.006 260);
+
+  /* 行动色：墨蓝 */
+  --primary: oklch(0.50 0.17 262);
+  --primary-foreground: oklch(0.98 0.005 95);
+  --ring: oklch(0.50 0.17 262 / 45%);
+
+  /* 状态色：指示剂（10px 级小字与 6px 小点也要保持 4.5:1 以上对比） */
+  --due: oklch(0.52 0.13 65);
+  --overdue: oklch(0.58 0.2 27);
+  --destructive: oklch(0.58 0.2 27);
+
+  /* 优先级色阶：绿=低 / 琥珀=中 / 红=高 */
+  --priority-low: oklch(0.7 0.11 155);
+  --priority-mid: oklch(0.74 0.14 78);
+  --priority-high: oklch(0.58 0.19 25);
+
+  /* 时间轴脊线 */
+  --spine: oklch(0.84 0.01 260);
+  --spine-fill: oklch(0.50 0.17 262 / 35%);
+}
+
+.dark {
+  color-scheme: dark;
+
+  --background: oklch(0.19 0.015 260); /* 蓝墨灰，不用纯黑 */
+  --foreground: oklch(0.93 0.01 95);
+  --card: oklch(0.23 0.015 260);
+  --card-foreground: oklch(0.93 0.01 95);
+  --popover: oklch(0.23 0.018 260);
+  --popover-foreground: oklch(0.93 0.01 95);
+  --secondary: oklch(0.28 0.015 260);
+  --secondary-foreground: oklch(0.93 0.01 95);
+  --muted: oklch(0.27 0.012 260);
+  --muted-foreground: oklch(0.72 0.02 260);
+  --accent: oklch(0.3 0.022 262);
+  --accent-foreground: oklch(0.93 0.01 95);
+  --border: oklch(0.32 0.015 260);
+  --input: oklch(0.34 0.015 260);
+
+  --primary: oklch(0.68 0.14 262);
+  --primary-foreground: oklch(0.16 0.02 260);
+  --ring: oklch(0.68 0.14 262 / 50%);
+
+  --due: oklch(0.78 0.14 80);
+  --overdue: oklch(0.7 0.18 25);
+  --destructive: oklch(0.7 0.18 25);
+
+  --priority-low: oklch(0.66 0.12 155);
+  --priority-mid: oklch(0.78 0.14 80);
+  --priority-high: oklch(0.66 0.19 25);
+
+  --spine: oklch(0.34 0.015 260);
+  --spine-fill: oklch(0.68 0.14 262 / 40%);
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* 字体：display 做标题与数字，mono 做日期/时刻，正文走系统栈（中文=雅黑，零体积） */
+  --font-sans: ui-sans-serif, "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
+  --font-display: "IBM Plex Sans Variable", "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+  --font-mono: "IBM Plex Mono", "Cascadia Mono", ui-monospace, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-due: var(--due);
+  --color-overdue: var(--overdue);
+  --color-priority-low: var(--priority-low);
+  --color-priority-mid: var(--priority-mid);
+  --color-priority-high: var(--priority-high);
+  --color-spine: var(--spine);
+  --color-spine-fill: var(--spine-fill);
+
+  --animate-settle: settle 0.26s cubic-bezier(0.4, 0, 0.9, 0.4);
+  --animate-rise: rise 0.3s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+  --animate-overdue-pulse: overdue-pulse 2.4s ease-in-out infinite;
+}
+
+/* 完成 = 下沉一沉（不填充结束态，避免数据刷新迟到时条目残留隐形） */
+@keyframes settle {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  45% {
+    opacity: 0.35;
+    transform: translateY(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+/* 脊线上的时刻标记入场 */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+/* 逾期呼吸：只动外光晕，不降低点本身不透明度（否则波谷时小点对比度跌到 2:1 以下） */
+@keyframes overdue-pulse {
+  0% {
+    box-shadow: 0 0 0 1px color-mix(in oklch, var(--overdue) 70%, transparent);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 5px transparent;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+  }
+  ::selection {
+    background: color-mix(in oklch, var(--primary) 22%, transparent);
+  }
+  /* 细窄中性滚动条：不抢视觉 */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in oklch, var(--muted-foreground) 30%, transparent);
+    border: 3px solid transparent;
+    background-clip: padding-box;
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklch, var(--muted-foreground) 50%, transparent);
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
