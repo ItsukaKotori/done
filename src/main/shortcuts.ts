@@ -1,9 +1,10 @@
 import { globalShortcut } from 'electron';
 import log from 'electron-log/main';
+import { PLATFORM } from './platform';
 
-export const DEFAULT_HOTKEY = 'Ctrl+Alt+A';
-export const DEFAULT_SHOW_MAIN_HOTKEY = 'Ctrl+Alt+W';
-export const DEFAULT_TOGGLE_STRIP_HOTKEY = 'Ctrl+Alt+S';
+export const DEFAULT_HOTKEY = PLATFORM.quickAddHotkey;
+export const DEFAULT_SHOW_MAIN_HOTKEY = PLATFORM.showMainHotkey;
+export const DEFAULT_TOGGLE_STRIP_HOTKEY = PLATFORM.toggleStripHotkey;
 
 /** 一个全局热键槽位：注册/更换，失败回滚到上一注册 */
 class ShortcutSlot {
