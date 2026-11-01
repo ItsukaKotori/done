@@ -22,6 +22,7 @@
     "db:node": "npm rebuild better-sqlite3",
     "db:electron": "electron-rebuild -f -w better-sqlite3",
     "make-icon": "node scripts/make-icon.mjs",
+    "icons:mac": "electron scripts/make-mac-icons.mjs",
     "build:win": "npm run make-icon && npm run build && electron-builder --win nsis --x64"
   },
   "dependencies": {
