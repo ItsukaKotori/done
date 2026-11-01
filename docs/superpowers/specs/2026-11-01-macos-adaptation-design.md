@@ -130,13 +130,13 @@ mac 在 bootstrap 阶段 `Menu.setApplicationMenu(buildMacMenu())`；Windows 维
 
 ## 图标与构建
 
-### make-icon.mjs 扩展
+### 新增 scripts/make-mac-icons.mjs
 
-现有行为（拷贝 png + 生成 ico）不变，追加 darwin 分支：
+node 直跑的 `make-icon.mjs` 保持不变（拷贝 png + 生成 ico）；mac 图标需 Electron 离屏渲染（`BrowserWindow.capturePage`），独立成 `scripts/make-mac-icons.mjs`，以 `electron scripts/make-mac-icons.mjs` 运行，零新增 npm 依赖：
 
-1. **程序化重绘**：SVG 字符串（圆角方块渐变底 + 白对勾 + 橙色光点，仿现有 256px 图）→ Electron 离屏 `BrowserWindow` 加载渲染 → `capturePage` 产出 1024px 母版 `build/icon-1024.png`（复用项目自身 electron 依赖，`npx electron scripts/…`，零新增 npm 依赖）。
-2. **icns**：`iconset` 目录 + `sips -z` 缩出 16/32/128/256/512 及 @2x → `iconutil -c icns` → `build/icon.icns`。
-3. **模板托盘图标**：对勾轮廓 SVG 同法渲染 16/32px → `build/trayTemplate{,@2x}.png`。
+1. **程序化重绘**：SVG 字符串（圆角方块渐变底 + 白对勾 + 橙色光点，仿现有 256px 图）→ 离屏渲染 → 1024px 母版 `build/icon-1024.png`。
+2. **icns**：iconset 目录各尺寸（16–1024 及 @2x，SVG 按尺寸参数化重绘）→ `iconutil -c icns` → `build/icon.icns`。
+3. **模板托盘图标**：对勾轮廓 SVG 渲染 → `resources/trayTemplate{,@2x}.png`。必须放 `resources/`（随包打包）——`build/` 在 electron-builder `files` 里被排除，进不了安装包。
 
 生成物与现有 `build/icon.{png,ico}` 一致地纳入版本库。
 
