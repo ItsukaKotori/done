@@ -30,4 +30,11 @@ nsis:
   installerIcon: build/icon.ico
   uninstallerIcon: build/icon.ico
   shortcutName: WhchemTodo
+mac:
+  icon: build/icon.icns
+  category: public.app-category.productivity
+  identity: null   # 个人使用，跳过签名（首次打开右键→打开放行 Gatekeeper）
+  target:
+    - target: dmg
+      arch: [arm64]
 publish: null   # 规格 §8：预留自动更新配置位（v1 不启用）
