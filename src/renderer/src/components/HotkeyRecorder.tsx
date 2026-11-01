@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { displayAccelerator } from '@/lib/platform';
 
 /**
  * 录制一个全局快捷键：点击进入录制，按键写入并保存，Esc 取消。
@@ -26,7 +27,7 @@ export function HotkeyRecorder({ value, onSave }: {
       const acc = [...mods, main].join('+');
       try {
         await onSave(acc);
-        toast.success(`快捷键已更新为 ${acc}`);
+        toast.success(`快捷键已更新为 ${displayAccelerator(acc)}`);
         setRecording(false);
       } catch (err) {
         toast.error(String((err as Error)?.message ?? err)); // 冲突回退，规格 §6
@@ -41,7 +42,7 @@ export function HotkeyRecorder({ value, onSave }: {
       variant={recording ? 'destructive' : 'outline'}
       onClick={() => setRecording(r => !r)}
     >
-      {recording ? '按下新快捷键…（Esc 取消）' : value}
+      {recording ? '按下新快捷键…（Esc 取消）' : displayAccelerator(value)}
     </Button>
   );
 }

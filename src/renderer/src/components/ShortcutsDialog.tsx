@@ -1,18 +1,27 @@
+import { isMac } from '@/lib/platform';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+
+const GLOBAL_KEYS: Array<[string, string]> = isMac
+  ? [
+      ['Alt+Cmd+A', '快速添加窗口'],
+      ['Alt+Cmd+W', '呼出主界面'],
+      ['Alt+Cmd+S', '呼出 / 收起长条'],
+    ]
+  : [
+      ['Ctrl+Alt+A', '快速添加窗口'],
+      ['Ctrl+Alt+W', '呼出主界面'],
+      ['Ctrl+Alt+S', '呼出 / 收起长条'],
+    ];
 
 const GROUPS: Array<{ title: string; items: Array<[string, string]> }> = [
   {
     title: '全局（系统级）',
-    items: [
-      ['Ctrl+Alt+A', '快速添加窗口'],
-      ['Ctrl+Alt+W', '呼出主界面'],
-      ['Ctrl+Alt+S', '呼出 / 收起长条'],
-    ],
+    items: GLOBAL_KEYS,
   },
   {
     title: '应用内',
     items: [
-      ['Ctrl+F', '在「全部任务」中搜索'],
+      [isMac ? 'Cmd+F' : 'Ctrl+F', '在「全部任务」中搜索'],
       ['j / k', '今日视图上 / 下选择任务'],
       ['x', '完成 / 取消完成选中任务'],
       ['Space', '开始 / 暂停选中任务计时'],
