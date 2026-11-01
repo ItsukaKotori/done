@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { Ipc, type ShowMainPayload } from '@shared/ipc';
 import type { WindowOps } from './ipc';
 import type { SettingsDao } from './db/dao';
+import { IS_MAC } from './platform';
 
 const QUICK_W = 560;
 const QUICK_H = 120;
@@ -110,28 +111,35 @@ export class AppWindowController implements WindowOps {
   createMain(hidden: boolean): BrowserWindow {
     this.main = new BrowserWindow({
       width: 1200, height: 750, minWidth: 960, minHeight: 600,
-      show: false, frame: false, titleBarStyle: 'hidden',
+      show: false,
       backgroundColor: '#0b0b0d',
+      // mac：保留系统红绿灯（hiddenInset 内容铺满全窗，微调位置垂直居中于 h-9 标题栏）
+      // win：无边框自绘三键（titleBarStyle 仅 mac 生效，win 靠 frame:false）
+      ...(IS_MAC
+        ? { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: 12, y: 12 } }
+        : { frame: false, titleBarStyle: 'hidden' as const }),
       webPreferences: AppWindowController.baseWebPreferences(),
     });
     this.loadWindow(this.main);
     this.main.once('ready-to-show', () => { if (!hidden) this.main?.show(); });
-    // 规格 §4.2：关窗 = 隐藏到托盘（退出只走托盘菜单），首次气泡提示
+    // win：规格 §4.2 关窗=隐藏到托盘（退出只走托盘菜单），首次气泡提示
+    // mac：红=关窗，应用留后台（window-all-closed no-op），重开走 Dock/菜单栏/热键
     this.main.on('close', (e) => {
-      if (!this.quitting) {
-        e.preventDefault();
-        this.main?.hide();
-        if (!bubbleShown) {
-          bubbleShown = true;
-          TrayManager.instance?.tray.displayBalloon({
-            title: 'WhchemTodo 在后台运行',
-            content: '提醒将继续送达。彻底退出请右键托盘图标 → 退出。',
-          });
-        }
+      if (this.quitting || IS_MAC) return;
+      e.preventDefault();
+      this.main?.hide();
+      if (!bubbleShown) {
+        bubbleShown = true;
+        TrayManager.instance?.tray.displayBalloon({
+          title: 'WhchemTodo 在后台运行',
+          content: '提醒将继续送达。彻底退出请右键托盘图标 → 退出。',
+        });
       }
     });
     // 规格 §6：渲染进程崩溃自动 reload；提醒链路（主进程）不受影响
-    this.main.webContents.on('render-process-gone', () => this.main?.webContents.reload());
+    this.main.webContents.on('render-process-gone', () => {
+      if (this.main && !this.main.isDestroyed()) this.main.webContents.reload();
+    });
     this.main.setMenu(null);
     return this.main;
   }
@@ -177,8 +185,8 @@ export class AppWindowController implements WindowOps {
 
   // ---- WindowOps 实现 ----
   broadcastChanged(): void {
-    this.main?.webContents.send(Ipc.EventDataChanged);
-    // strip 窗复用常驻，不同步广播会停在旧数据（跨窗口刷新不变量）
+    // mac 上主窗可被真正关闭销毁（win 永远只是 hide），发送前必须判断
+    if (this.main && !this.main.isDestroyed()) this.main.webContents.send(Ipc.EventDataChanged);
     if (this.strip && !this.strip.isDestroyed()) this.strip.webContents.send(Ipc.EventDataChanged);
     this.emitter.emit('changed'); // 主进程本地订阅（托盘计数刷新）
   }
@@ -188,17 +196,19 @@ export class AppWindowController implements WindowOps {
     return () => this.emitter.off('changed', cb);
   }
 
-  minimize(): void { this.main?.minimize(); }
+  minimize(): void {
+    if (this.main && !this.main.isDestroyed()) this.main.minimize();
+  }
 
   maximizeToggle(): void {
-    if (!this.main) return;
+    if (!this.main || this.main.isDestroyed()) return;
     if (this.main.isMaximized()) this.main.unmaximize();
     else this.main.maximize();
   }
 
   hideToTray(): void {
-    this.main?.hide();
-    this.strip?.hide();
+    if (this.main && !this.main.isDestroyed()) this.main.hide();
+    if (this.strip && !this.strip.isDestroyed()) this.strip.hide();
   }
 
   hideWindow(wc: WebContents): void {
