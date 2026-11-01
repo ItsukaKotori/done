@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { Ipc, type ShowMainPayload } from '@shared/ipc';
 import type { WindowOps } from './ipc';
 import type { SettingsDao } from './db/dao';
-import { IS_MAC } from './platform';
+import { IS_MAC, PLATFORM } from './platform';
 
 const QUICK_W = 560;
 const QUICK_H = 120;
@@ -341,13 +341,17 @@ export class TrayManager {
   private count = 0;
 
   constructor(private win: AppWindowController, private onPause: () => void) {
-    const icon = nativeImage
-      .createFromPath(join(__dirname, '../../resources/icon.png'))
-      .resize({ width: 16, height: 16 });
-    this.tray = new Tray(icon);
+    const img = nativeImage.createFromPath(join(__dirname, '../../resources', PLATFORM.trayIconName));
+    // mac 模板图：文件名 Template 后缀自动标记，随明暗反色；resize 会破坏 @2x 组合，禁止
+    this.tray = new Tray(PLATFORM.trayIconTemplate ? img : img.resize({ width: 16, height: 16 }));
     this.tray.setToolTip('WhchemTodo');
     this.tray.on('click', () => this.win.showMain());
-    this.tray.on('double-click', () => this.win.showMain());
+    if (PLATFORM.trayIconTemplate) {
+      // mac：设 contextMenu 后左键会被菜单吞掉，菜单挂右键、弹出时实时构建（计数必新）
+      this.tray.on('right-click', () => this.tray.popUpContextMenu(this.buildMenu()));
+    } else {
+      this.tray.on('double-click', () => this.win.showMain());
+    }
     TrayManager.instance = this;
     this.refresh();
     // 退出清理由 index.ts 的 before-quit 统一负责，不重复注册
@@ -359,15 +363,20 @@ export class TrayManager {
     this.refresh();
   }
 
-  private refresh(): void {
-    this.tray.setContextMenu(Menu.buildFromTemplate([
+  private buildMenu(): Menu {
+    return Menu.buildFromTemplate([
       { label: '打开主窗口', click: () => this.win.showMain() },
       { label: `今日待办：${this.count} 条`, enabled: false },
       { type: 'separator' },
       { label: '暂停所有提醒 1 小时', click: () => this.onPause() },
       { type: 'separator' },
       { label: '退出 WhchemTodo', click: () => app.quit() },
-    ]));
+    ]);
+  }
+
+  private refresh(): void {
+    if (PLATFORM.trayIconTemplate) return; // mac：菜单不常驻，右键时实时构建
+    this.tray.setContextMenu(this.buildMenu());
   }
 
   destroy(): void {
