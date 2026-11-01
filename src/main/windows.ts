@@ -144,6 +144,29 @@ export class AppWindowController implements WindowOps {
     return this.main;
   }
 
+  /** mac 专属：应用菜单（Edit roles 供输入框 Cmd+C/V；「设置…」直达设置页） */
+  installMacAppMenu(): void {
+    Menu.setApplicationMenu(Menu.buildFromTemplate([
+      {
+        label: app.name,
+        submenu: [
+          { role: 'about' },
+          { type: 'separator' },
+          { label: '设置…', accelerator: 'Cmd+,', click: () => this.showMain({ openSettings: true }) },
+          { type: 'separator' },
+          { role: 'hide' },
+          { role: 'hideOthers' },
+          { role: 'unhide' },
+          { type: 'separator' },
+          { role: 'quit' },
+        ],
+      },
+      { role: 'editMenu' },
+      { role: 'viewMenu' },
+      { role: 'windowMenu' },
+    ]));
+  }
+
   getMainWindow(): BrowserWindow | null { return this.main; }
 
   showMain(payload?: ShowMainPayload): void {

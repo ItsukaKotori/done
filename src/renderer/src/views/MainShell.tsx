@@ -47,6 +47,8 @@ export default function MainShell() {
           focusDate: p.focusTodo.date,
         });
         toast.info('已定位到提醒任务', { description: p.focusTodo.date });
+      } else if (p.openSettings) {
+        setNav('settings');
       }
     });
     return () => {

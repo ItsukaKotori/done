@@ -75,6 +75,7 @@ export interface PreviewRequest {
 export interface ShowMainPayload {
   focusTodo?: { todoId: number; date: string };
   quickAddDraft?: string; // 快添窗 Ctrl+Enter 预填标题
+  openSettings?: boolean; // mac 应用菜单「设置…」直达设置页
 }
 
 export interface StripState {

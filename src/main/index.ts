@@ -9,6 +9,7 @@ import { Exporter } from './services/exporter';
 import { StatsService } from './services/stats';
 import { registerIpc } from './ipc';
 import { AppWindowController, TrayManager } from './windows';
+import { IS_MAC } from './platform';
 import { dispatchNotify } from './notify';
 import {
   registerQuickAddShortcut, registerShowMainShortcut, registerToggleStripShortcut,
@@ -100,6 +101,7 @@ async function bootstrap(): Promise<void> {
   }, occDao);
 
   windows.createMain(hidden);
+  if (IS_MAC) windows.installMacAppMenu();
 
   const tray = new TrayManager(windows, () => {
     scheduler.pause(60 * 60 * 1000);
@@ -166,6 +168,7 @@ async function bootstrap(): Promise<void> {
   });
 
   app.on('second-instance', () => windows?.showMain());
+  if (IS_MAC) app.on('activate', () => windows?.showMain()); // Dock 点击重开主窗
   app.on('window-all-closed', () => { /* 托盘应用：不退出 */ });
   app.on('before-quit', () => {
     unregisterAllShortcuts();
