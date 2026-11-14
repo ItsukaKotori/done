@@ -9,7 +9,7 @@ import type { SettingsDao } from './db/dao';
 import { IS_MAC, PLATFORM } from './platform';
 
 const QUICK_W = 560;
-const QUICK_H = 120;
+const QUICK_H = 160;
 const STRIP_W = 600;
 const STRIP_H_COLLAPSED = 32;
 const STRIP_H_EXPANDED = 380;
