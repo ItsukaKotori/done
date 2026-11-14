@@ -97,7 +97,6 @@ export default function SettingsView() {
   }, []);
 
   const preset = AI_PROVIDERS.find((p) => p.id === aiProvider) ?? AI_PROVIDERS[0];
-  const effectiveModel = aiModel || preset.defaultModel;
   const aiEnabledBadge = aiEnabled ? <Badge>开</Badge> : null;
 
   const saveKey = async () => {
@@ -184,7 +183,7 @@ export default function SettingsView() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-xs text-muted-foreground">
-            启用后，快添窗输入文本将发送至所选模型服务商；未启用时本地规则解析仍然可用。
+            启用后，快添输入文本将发送至所选模型服务商；未启用时本地规则解析仍然可用。
           </p>
           <div className="flex items-center justify-between">
             <span>启用 AI 增强</span>
