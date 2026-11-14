@@ -99,7 +99,9 @@ export default function QuickAddView() {
     }
     setBusy(true);
     try {
-      if (openEditor) await window.api.win.openEditor({ title: cur.title, parsed: parsed ?? null });
+      // meta-only 输入会把 parsed.title 清空，编辑器预填需回退到原文（与 currentDraft 的兜底一致）
+      if (openEditor)
+        await window.api.win.openEditor({ title: cur.title, parsed: parsed ? { ...parsed, title: parsed.title || cur.title } : null });
       else await window.api.todos.create(cur.draft);
       close();
     } catch (e) {
