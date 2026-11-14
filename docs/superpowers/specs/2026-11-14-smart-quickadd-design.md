@@ -75,7 +75,7 @@ export interface ParsedTask {
 
 ### 4.1 IPC 契约
 
-- `Ipc.AiParse = 'ai:parse'`，payload `{ input: string; today: string }`，返回 `R<ParsedTask>`（遵循现有 envelope）。
+- `Ipc.AiParse = 'ai:parse'`，位置参数 `(input: string, today: string)`（与既有通道的传参风格一致），返回 `R<ParsedTask>`（遵循现有 envelope）。
 - 主进程 handler 在 `src/main/ipc.ts` 注册；服务实现 `src/main/services/ai-parser.ts`。
 
 ### 4.2 Provider 适配器
