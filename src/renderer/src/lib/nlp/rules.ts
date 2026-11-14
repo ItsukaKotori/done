@@ -2,13 +2,14 @@
 import { emptyRepeat, type ParsedTask } from '@shared/parse';
 import type { Priority, RecurrenceSpec } from '@shared/types';
 import { normalizeTags } from '@shared/tags';
-import { addDays, dateToNum, formatDate, weekdayOf } from '@shared/recurrence';
+import { addDays, dateToNum, formatDate, occursOn, weekdayOf } from '@shared/recurrence';
 
 // ---- 词表与正则（Task 3/4/5 会继续往这里加日期/时刻/重复模式）----
 
 const RE_TAG = /#([^\s#]+)/g;
-const RE_PRIO_HIGH = /高优先级|紧急|加急|重要/g;
-const RE_PRIO_LOW = /低优先级|不急/g;
+const RE_PRIO_HIGH = /(?<!不)(?:高优先级|紧急|加急|重要)/g;
+const RE_PRIO_LOW = /低优先级|不紧急|不急/g;
+const RE_PRIO_NEG = /不重要/g; // 否定词：不影响优先级，仅从文本剥离（不紧急 由 LOW 分支处理）
 
 const stripMatches = (s: string, re: RegExp): string =>
   s.replaceAll(re, ' ');
@@ -16,10 +17,76 @@ const stripMatches = (s: string, re: RegExp): string =>
 const collapse = (s: string): string =>
   s.replaceAll(/\s+/g, ' ').trim().replace(/^[、,，。.\s-]+|[、,，。.\s-]+$/g, '');
 
-// ---- 各维度提取（桩：Task 3/4/5 逐个替换为真实模式解析）----
+// ---- 各维度提取（Task 3/4/5 逐个替换为真实模式解析）----
 
-function parseRepeat(_rest: string, _today: string): { repeat: RecurrenceSpec; text: string } {
-  return { repeat: emptyRepeat(), text: _rest };
+const CN_NUM: Record<string, number> = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5 };
+
+const RE_EVERY_DAY = /每天|每日/;
+const RE_WORKDAY = /工作日/;
+const RE_EVERY_WEEK = /每(?:周|星期|礼拜)[一二三四五六日天、，,\s和与]+/;
+const RE_EVERY_MONTH_DATE = /每月\s*(\d{1,2})\s*[号日]/;
+const RE_EVERY_MONTH_LAST = /每月最后一个\s*(?:周|星期|礼拜)([一二三四五六日天])/;
+const RE_EVERY_MONTH_N = /每月第([一二三四五1-5])\s*个?\s*(?:周|星期|礼拜)([一二三四五六日天])/;
+const RE_EVERY_N_DAYS = /每\s*(\d{1,2})\s*天/;
+
+/** 区间 [today, today+62] 内首个符合 repeat 规则的发生日 */
+function firstOccurrence(repeat: RecurrenceSpec, today: string): string | null {
+  for (let i = 0; i <= 62; i++) {
+    const d = addDays(today, i);
+    if (occursOn(repeat, today, d)) return d;
+  }
+  return null;
+}
+
+function parseRepeat(rest: string, today: string): { repeat: RecurrenceSpec; text: string } {
+  const take = (re: RegExp): RegExpMatchArray | null => rest.match(re);
+
+  let m = take(RE_EVERY_DAY);
+  if (m) return { repeat: { ...emptyRepeat(), repeatType: 'daily' }, text: rest.replace(m[0], ' ') };
+
+  m = take(RE_WORKDAY);
+  if (m) return { repeat: { ...emptyRepeat(), repeatType: 'weekly', repeatWeekdays: [1, 2, 3, 4, 5] }, text: rest.replace(m[0], ' ') };
+
+  m = take(RE_EVERY_WEEK);
+  if (m) {
+    const days = [...new Set([...m[0]].filter((c) => c in WEEKDAY_CHAR).map((c) => WEEKDAY_CHAR[c]))].sort((a, b) => a - b);
+    if (days.length > 0) {
+      return { repeat: { ...emptyRepeat(), repeatType: 'weekly', repeatWeekdays: days }, text: rest.replace(m[0], ' ') };
+    }
+  }
+
+  m = take(RE_EVERY_MONTH_LAST);
+  if (m) {
+    return {
+      repeat: { ...emptyRepeat(), repeatType: 'monthly', monthlyMode: 'by_weekday', monthlyWeekday: WEEKDAY_CHAR[m[1]], monthlyWhich: 5 },
+      text: rest.replace(m[0], ' '),
+    };
+  }
+
+  m = take(RE_EVERY_MONTH_N);
+  if (m) {
+    const which = CN_NUM[m[1]] ?? Number(m[1]);
+    return {
+      repeat: { ...emptyRepeat(), repeatType: 'monthly', monthlyMode: 'by_weekday', monthlyWeekday: WEEKDAY_CHAR[m[2]], monthlyWhich: which },
+      text: rest.replace(m[0], ' '),
+    };
+  }
+
+  m = take(RE_EVERY_MONTH_DATE);
+  if (m) {
+    return {
+      repeat: { ...emptyRepeat(), repeatType: 'monthly', monthlyMode: 'by_date', monthlyDay: Number(m[1]) },
+      text: rest.replace(m[0], ' '),
+    };
+  }
+
+  m = take(RE_EVERY_N_DAYS);
+  if (m) {
+    const n = Number(m[1]);
+    if (n >= 2) return { repeat: { ...emptyRepeat(), repeatType: 'custom', repeatInterval: n }, text: rest.replace(m[0], ' ') };
+  }
+
+  return { repeat: emptyRepeat(), text: rest };
 }
 
 const WEEKDAY_CHAR: Record<string, number> = {
@@ -135,6 +202,7 @@ export function parseTaskInput(raw: string, today: string): ParsedTask {
   let rest = raw.replaceAll(RE_TAG, ' ');
 
   // 2) 优先级
+  rest = stripMatches(rest, RE_PRIO_NEG);
   let priority: Priority = 1;
   if (RE_PRIO_HIGH.test(rest)) { priority = 2; rest = stripMatches(rest, RE_PRIO_HIGH); }
   else if (RE_PRIO_LOW.test(rest)) { priority = 0; rest = stripMatches(rest, RE_PRIO_LOW); }
@@ -154,12 +222,21 @@ export function parseTaskInput(raw: string, today: string): ParsedTask {
   // 6) 标题：剩余文本
   const title = collapse(rest);
 
-  // 7) 重复任务无显式日期 → 今天起算
-  const dueDate =
-    rep.repeat.repeatType !== 'none' ? (dt.dueDate ?? today) : dt.dueDate;
+  // 7) 重复任务：无显式日期 → 今天起算；startDate = 首个发生日（每周X/每月X 需扫描）
+  let dueDate = dt.dueDate;
+  let startDate: string | null = null;
+  if (rep.repeat.repeatType !== 'none') {
+    if (!dueDate) dueDate = today;
+    startDate = dueDate;
+    if (rep.repeat.repeatType === 'weekly' || rep.repeat.repeatType === 'monthly') {
+      const first = firstOccurrence(rep.repeat, dueDate);
+      if (first) { dueDate = first; startDate = first; }
+    }
+  }
 
   return {
     title, dueDate, timeOfDay: tm.timeOfDay, priority, tags,
     repeat: rep.repeat, source: 'rules',
+    startDate,
   };
 }
