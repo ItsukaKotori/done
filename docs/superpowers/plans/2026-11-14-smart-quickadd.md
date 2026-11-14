@@ -527,7 +527,7 @@ Expected: FAIL（时刻用例全红）
 ```ts
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
-const RE_TIME = /(早上|上午|中午|下午|傍晚|晚上)?\s*(\d{1,2})点(?:(\d{1,2})分|半)?/;
+const RE_TIME = /(早上|上午|中午|下午|傍晚|晚上)?\s*(\d{1,2})点(?:(\d{1,2})分|(半))?/;
 const RE_TIME_HM = /(\d{1,2}):(\d{2})/;
 
 function parseTime(rest: string): { timeOfDay: string | null; text: string } {
@@ -543,7 +543,7 @@ function parseTime(rest: string): { timeOfDay: string | null; text: string } {
   if (m) {
     const period = m[1];
     let h = Number(m[2]);
-    const min = m[3] === '半' ? 30 : Number(m[3] ?? 0);
+    const min = m[4] === '半' ? 30 : Number(m[3] ?? 0);
     if (h >= 0 && h <= 23 && min <= 59) {
       const afternoon = period !== undefined && period !== '早上' && period !== '上午';
       if (period === '中午' && h === 12) h = 12;
