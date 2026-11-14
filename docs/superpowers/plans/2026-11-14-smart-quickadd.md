@@ -894,7 +894,7 @@ export default function QuickAddView() {
   };
 
   const onInput = (e: FormEvent<HTMLInputElement>) => {
-    if (e.nativeEvent.isComposing) return; // IME 组合期间不解析（spec §3.2）
+    if ((e.nativeEvent as InputEvent).isComposing) return; // IME 组合期间不解析（spec §3.2）；React 19 FormEvent.nativeEvent 类型为 Event，需断言为 InputEvent
     const v = inputRef.current?.value ?? '';
     setParsed(v.trim() ? parseTaskInput(v, todayStr(Date.now())) : null);
     setAiBadge(null);
