@@ -94,8 +94,37 @@ function parseDate(rest: string, today: string): { dueDate: string | null; text:
   return { dueDate: null, text: rest };
 }
 
-function parseTime(_rest: string): { timeOfDay: string | null; text: string } {
-  return { timeOfDay: null, text: _rest };
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+const RE_TIME = /(早上|上午|中午|下午|傍晚|晚上)?\s*(\d{1,2})点(?:(\d{1,2})分|(半))?/;
+const RE_TIME_HM = /(\d{1,2}):(\d{2})/;
+
+function parseTime(rest: string): { timeOfDay: string | null; text: string } {
+  const hm = rest.match(RE_TIME_HM);
+  if (hm) {
+    const h = Number(hm[1]);
+    const min = Number(hm[2]);
+    if (h <= 23 && min <= 59) {
+      return { timeOfDay: `${pad2(h)}:${pad2(min)}`, text: rest.replace(hm[0], ' ') };
+    }
+  }
+  const m = rest.match(RE_TIME);
+  if (m) {
+    const period = m[1];
+    let h = Number(m[2]);
+    const min = m[4] === '半' ? 30 : Number(m[3] ?? 0);
+    if (h >= 0 && h <= 23 && min <= 59) {
+      const afternoon = period !== undefined && period !== '早上' && period !== '上午';
+      if (period === '中午' && h === 12) h = 12;
+      else if (period === '中午' && h < 12) h += 12;
+      else if (afternoon && h < 12) h += 12;
+      else if (!period && h >= 1 && h <= 5) h += 12; // 裸 1-5 点默认下午
+      if (h <= 23) {
+        return { timeOfDay: `${pad2(h)}:${pad2(min)}`, text: rest.replace(m[0], ' ') };
+      }
+    }
+  }
+  return { timeOfDay: null, text: rest };
 }
 
 // ---- 主入口 ----

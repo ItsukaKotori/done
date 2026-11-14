@@ -96,3 +96,31 @@ describe('日期', () => {
     expect(parseTaskInput('2026-99-99 备份', TODAY).dueDate).toBeNull();
   });
 });
+
+describe('时刻', () => {
+  it('HH:mm 字面量原样', () => {
+    const p = parseTaskInput('15:30 站会', TODAY);
+    expect(p.timeOfDay).toBe('15:30');
+    expect(p.title).toBe('站会');
+  });
+
+  it('时段词 + X点(半/X分)', () => {
+    expect(parseTaskInput('下午3点理疗', TODAY).timeOfDay).toBe('15:00');
+    expect(parseTaskInput('下午3点半取药', TODAY).timeOfDay).toBe('15:30');
+    expect(parseTaskInput('上午9点晨会', TODAY).timeOfDay).toBe('09:00');
+    expect(parseTaskInput('晚上8点健身', TODAY).timeOfDay).toBe('20:00');
+    expect(parseTaskInput('中午12点吃饭', TODAY).timeOfDay).toBe('12:00');
+    expect(parseTaskInput('中午1点午休', TODAY).timeOfDay).toBe('13:00');
+    expect(parseTaskInput('上午10点45分答辩', TODAY).timeOfDay).toBe('10:45');
+  });
+
+  it('裸 X点：1-5 默认下午，6-11 原样', () => {
+    expect(parseTaskInput('3点开会', TODAY).timeOfDay).toBe('15:00');
+    expect(parseTaskInput('9点打卡', TODAY).timeOfDay).toBe('09:00');
+    expect(parseTaskInput('12点吃饭', TODAY).timeOfDay).toBe('12:00');
+  });
+
+  it('时刻从标题剥离', () => {
+    expect(parseTaskInput('下午3点理疗', TODAY).title).toBe('理疗');
+  });
+});
