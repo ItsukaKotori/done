@@ -16,11 +16,12 @@ describe('AI_PROVIDERS', () => {
   });
 
   it('buildChatBody：JSON mode、system 含 today 锚点、user 为原文', () => {
-    const body = JSON.parse(buildChatBody('明天下午3点开会', '2026-11-14', 'deepseek-chat'));
+    const body = JSON.parse(buildChatBody('明天下午3点开会', '2031-02-09', 'deepseek-chat'));
     expect(body.model).toBe('deepseek-chat');
     expect(body.response_format).toEqual({ type: 'json_object' });
     expect(body.messages[0].role).toBe('system');
-    expect(body.messages[0].content).toContain('2026-11-14');
+    expect(body.messages[0].content).toContain('2031-02-09');
+    expect(SYSTEM_PROMPT('2031-02-09')).toContain('2031-02-09');
     expect(body.messages[1].content).toBe('明天下午3点开会');
   });
 });
