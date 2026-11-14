@@ -6,7 +6,8 @@
     "lib": ["ES2023"],
     "paths": {
       "@/*": ["./src/renderer/src/*"],
-      "@shared/*": ["./src/shared/*"]
+      "@shared/*": ["./src/shared/*"],
+      "@main/*": ["./src/main/*"]
     },
     "strict": true,
     "noEmit": true,
