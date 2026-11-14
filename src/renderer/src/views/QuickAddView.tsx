@@ -3,17 +3,28 @@ import { Toaster } from '@/components/ui/sonner';
 import { toast } from 'sonner';
 import { todayStr } from '@shared/recurrence';
 import { parsedToDraft, type ParsedTask } from '@shared/parse';
+import { AI_PROVIDERS } from '@shared/ai-providers';
 import { parseTaskInput } from '@/lib/nlp/rules';
 
 export default function QuickAddView() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [parsed, setParsed] = useState<ParsedTask | null>(null);
-  const [aiBadge, setAiBadge] = useState<string | null>(null); // Task 11 使用
+  const [aiBadge, setAiBadge] = useState<string | null>(null);
+  const aiTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const seqRef = useRef(0);
+  const failToastedRef = useRef(false);
+  const providerLabelRef = useRef('AI');
 
+  // 快添窗每次唤起：清输入、作废在途 AI 响应（重开即新会话，防止旧结果写进已清空的输入框）
   useEffect(
     () =>
       window.api.onQuickAddFocusInput(() => {
+        if (aiTimerRef.current) {
+          clearTimeout(aiTimerRef.current);
+          aiTimerRef.current = null;
+        }
+        seqRef.current += 1;
         if (inputRef.current) {
           inputRef.current.value = '';
           inputRef.current.focus();
@@ -23,6 +34,51 @@ export default function QuickAddView() {
       }),
     [],
   );
+
+  // 快添窗每次唤起刷新 provider label（徽章文案，spec §6）
+  useEffect(
+    () =>
+      window.api.onQuickAddFocusInput(() => {
+        void window.api.settings.get<string>('ai_provider').then((id) => {
+          providerLabelRef.current =
+            AI_PROVIDERS.find((p) => p.id === id)?.label ?? 'AI';
+        });
+      }),
+    [],
+  );
+
+  // 最后一次键入 400ms 后调 AI 增强；序号守卫只让最新一次请求写回
+  const scheduleAi = () => {
+    const v = inputRef.current?.value ?? '';
+    if (aiTimerRef.current) clearTimeout(aiTimerRef.current);
+    const seq = ++seqRef.current;
+    if (!v.trim()) return;
+    aiTimerRef.current = setTimeout(() => {
+      void window.api.ai
+        .parse(v, todayStr(Date.now()))
+        .then((t) => {
+          if (seqRef.current === seq) {
+            setParsed(t);
+            setAiBadge(providerLabelRef.current);
+          }
+        })
+        .catch(() => {
+          // 静默降级：保留规则结果；每次会话首败提示一次
+          if (!failToastedRef.current) {
+            failToastedRef.current = true;
+            toast.info('AI 增强暂不可用，已使用本地解析');
+          }
+        });
+    }, 400);
+  };
+
+  // 用输入框当前值重置规则解析并重排 AI（onInput 与 compositionend 共用）
+  const reparse = () => {
+    const v = inputRef.current?.value ?? '';
+    setParsed(v.trim() ? parseTaskInput(v, todayStr(Date.now())) : null);
+    setAiBadge(null);
+    scheduleAi();
+  };
 
   const close = () => window.api.win.closeQuickAdd();
 
@@ -43,7 +99,7 @@ export default function QuickAddView() {
     }
     setBusy(true);
     try {
-      if (openEditor) await window.api.win.openEditor(cur.title);
+      if (openEditor) await window.api.win.openEditor({ title: cur.title, parsed: parsed ?? null });
       else await window.api.todos.create(cur.draft);
       close();
     } catch (e) {
@@ -56,9 +112,7 @@ export default function QuickAddView() {
 
   const onInput = (e: FormEvent<HTMLInputElement>) => {
     if ((e.nativeEvent as InputEvent).isComposing) return; // IME 组合期间不解析（spec §3.2）
-    const v = inputRef.current?.value ?? '';
-    setParsed(v.trim() ? parseTaskInput(v, todayStr(Date.now())) : null);
-    setAiBadge(null);
+    reparse();
   };
 
   return (
@@ -73,6 +127,9 @@ export default function QuickAddView() {
         placeholder={busy ? '保存中…' : '试试：每周三五下午3点开周会 #工作'}
         disabled={busy}
         onInput={onInput}
+        // Chromium：compositionend 后不再补发 input 事件，必须在此用最终文本重解析，
+        // 否则 IME 会话前的旧 parsed 一直滞留，Enter 会提交预编辑期的解析结果
+        onCompositionEnd={reparse}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
             e.preventDefault();

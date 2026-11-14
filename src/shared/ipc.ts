@@ -133,7 +133,7 @@ export interface Api {
     hideToTray(): Promise<void>;
     selfHide(): Promise<void>;
     closeQuickAdd(): Promise<void>;
-    openEditor(title: string): Promise<void>;
+    openEditor(draft: { title: string; parsed: ParsedTask | null }): Promise<void>;
     collapseStrip(): Promise<void>;
     stripToggle(): Promise<void>;
     expandMain(): Promise<void>;

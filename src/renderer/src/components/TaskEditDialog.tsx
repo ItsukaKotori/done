@@ -17,6 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { RepeatField } from './RepeatField';
 import { todayStr } from '@shared/recurrence';
+import { parsedToDraft } from '@shared/parse';
 import { normalizeTags } from '@shared/tags';
 import type { EditorState } from './editor-state';
 import type { Todo, TodoDraft, Priority } from '@shared/types';
@@ -56,8 +57,12 @@ export default function TaskEditDialog({ state, onClose }: {
     const base = state.todo
       ? todoToDraft(state.todo)
       : emptyDraft(state.dueDate ?? todayStr(Date.now()));
-    setDraft(state.draftTitle ? { ...base, title: state.draftTitle } : base);
-    setTagText((base.tags ?? []).join(', '));
+    const prefill = state.draftTitle
+      ? { ...base, title: state.draftTitle, ...(state.parsed ? parsedToDraft(state.parsed, Date.now()) : {}) }
+      : base;
+    setDraft(prefill);
+    // 标签输入框必须与预填同步：保存时 tags 以 tagText 为准，不同步会静默丢标签
+    setTagText((prefill.tags ?? []).join(', '));
     setPreviews([]);
     setConfirmingDelete(false); // 重开时重置删除确认态
   }, [state]);

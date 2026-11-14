@@ -3,6 +3,7 @@ import { copyFile, writeFile } from 'node:fs/promises';
 import log from 'electron-log/main';
 import { Ipc, ok, fail, type PreviewRequest, type ExportResult } from '@shared/ipc';
 import { todayStr } from '@shared/recurrence';
+import type { ParsedTask } from '@shared/parse';
 import type { TodoService } from './services/todo-service';
 import type { Scheduler } from './services/scheduler';
 import type { Exporter } from './services/exporter';
@@ -22,7 +23,7 @@ export interface WindowOps {
   hideToTray(): void;
   hideWindow(wc: WebContents): void;
   closeQuickAdd(): void;
-  openEditorFromQuickAdd(title: string): void;
+  openEditorFromQuickAdd(draft: { title: string; parsed: ParsedTask | null }): void;
   focusTodo(todoId: number, date: string): void;
   showMain(): void;
   collapseToStrip(): void;
@@ -182,7 +183,7 @@ export function registerIpc(deps: IpcDeps): void {
   wrap(Ipc.WinHide, () => windows.hideToTray());
   wrapEv(Ipc.WinSelfHide, (e) => windows.hideWindow(e.sender));
   wrap(Ipc.WinCloseQuickAdd, () => windows.closeQuickAdd());
-  wrap(Ipc.WinOpenEditor, (title: string) => windows.openEditorFromQuickAdd(title));
+  wrap(Ipc.WinOpenEditor, (d: { title: string; parsed: ParsedTask | null }) => windows.openEditorFromQuickAdd(d));
   wrap(Ipc.CollapseStrip, () => windows.collapseToStrip());
   wrap(Ipc.StripToggle, () => windows.toggleStrip());
   wrap(Ipc.ExpandMain, () => windows.expandFromStrip());

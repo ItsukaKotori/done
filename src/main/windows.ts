@@ -4,6 +4,7 @@ import {
 import { EventEmitter } from 'node:events';
 import { join } from 'node:path';
 import { Ipc, type ShowMainPayload } from '@shared/ipc';
+import type { ParsedTask } from '@shared/parse';
 import type { WindowOps } from './ipc';
 import type { SettingsDao } from './db/dao';
 import { IS_MAC, PLATFORM } from './platform';
@@ -247,9 +248,8 @@ export class AppWindowController implements WindowOps {
 
   closeQuickAdd(): void { this.quickAdd?.hide(); }
 
-  openEditorFromQuickAdd(title: string): void {
-    // parsed Task 11 接入 AI 解析结果，本任务先以 null 保持现状行为
-    this.showMain({ quickAddDraft: { title, parsed: null } }); // 主窗渲染层监听 EventShowMain 打开预填对话框
+  openEditorFromQuickAdd(draft: { title: string; parsed: ParsedTask | null }): void {
+    this.showMain({ quickAddDraft: draft }); // 主窗渲染层监听 EventShowMain 打开预填对话框
     this.quickAdd?.hide();
   }
 
