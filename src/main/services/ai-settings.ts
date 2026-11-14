@@ -15,5 +15,8 @@ export function loadAiConfig(settingsDao: SettingsDao, safe: SafeStorageLike): A
   const model = settingsDao.get<string>('ai_model') || preset.defaultModel;
   const enc = settingsDao.get<string>('ai_key_enc');
   if (!baseUrl || !model || !enc) throw new IpcError('AI_NOT_CONFIGURED', '请先在设置中完成模型配置');
-  return { baseUrl, model, apiKey: decryptKey(enc, safe) };
+  const apiKey = decryptKey(enc, safe);
+  // 密文存在但解密为空（如清空后残留）同样视为未配置（Task 9 评审裁定）
+  if (apiKey.trim() === '') throw new IpcError('AI_NOT_CONFIGURED', '请先在设置中完成模型配置');
+  return { baseUrl, model, apiKey };
 }

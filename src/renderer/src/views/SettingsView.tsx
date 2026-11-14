@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AI_PROVIDERS } from '@shared/ai-providers';
 import { HotkeyRecorder } from '@/components/HotkeyRecorder';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -81,6 +84,45 @@ export default function SettingsView() {
     }
   };
 
+  // 智能快添（AI）
+  const [aiEnabled, setAiEnabled] = useSettings<boolean>('ai_enabled', false);
+  const [aiProvider, setAiProvider] = useSettings<string>('ai_provider', 'deepseek');
+  const [aiModel, setAiModel] = useSettings<string>('ai_model', '');
+  const [aiBaseUrl, setAiBaseUrl] = useSettings<string>('ai_base_url', '');
+  const [keyInput, setKeyInput] = useState('');
+  const [keyHint, setKeyHint] = useState<string | null>(null);
+  const [testing, setTesting] = useState(false);
+  useEffect(() => {
+    void window.api.ai.keyHint().then(setKeyHint);
+  }, []);
+
+  const preset = AI_PROVIDERS.find((p) => p.id === aiProvider) ?? AI_PROVIDERS[0];
+  const effectiveModel = aiModel || preset.defaultModel;
+  const aiEnabledBadge = aiEnabled ? <Badge>开</Badge> : null;
+
+  const saveKey = async () => {
+    try {
+      await window.api.ai.setKey(keyInput.trim());
+      setKeyInput('');
+      setKeyHint(await window.api.ai.keyHint());
+      toast.success('API Key 已加密保存');
+    } catch (e) {
+      toast.error(String((e as Error)?.message ?? e));
+    }
+  };
+
+  const testConn = async () => {
+    setTesting(true);
+    try {
+      await window.api.ai.testConnection();
+      toast.success('连接成功');
+    } catch (e) {
+      toast.error(String((e as Error)?.message ?? e));
+    } finally {
+      setTesting(false);
+    }
+  };
+
   return (
     <div className="space-y-6 overflow-y-auto p-6">
       <h1 className="font-display text-xl font-semibold tracking-tight">设置</h1>
@@ -133,6 +175,54 @@ export default function SettingsView() {
           >
             发送测试通知
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">智能快添 {aiEnabledBadge}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            启用后，快添窗输入文本将发送至所选模型服务商；未启用时本地规则解析仍然可用。
+          </p>
+          <div className="flex items-center justify-between">
+            <span>启用 AI 增强</span>
+            <Switch checked={aiEnabled ?? false} onCheckedChange={(v) => void setAiEnabled(v)} />
+          </div>
+          <div className="grid gap-2">
+            <span className="text-sm">服务商</span>
+            <Select value={aiProvider} onValueChange={(v) => { void setAiProvider(v); void setAiModel(''); }}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {AI_PROVIDERS.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2">
+            <span className="text-sm">模型名（留空用默认 {preset.defaultModel || '—'}）</span>
+            <Input value={aiModel} onChange={(e) => void setAiModel(e.target.value)} placeholder={preset.defaultModel || '模型名'} />
+          </div>
+          {aiProvider === 'custom' && (
+            <div className="grid gap-2">
+              <span className="text-sm">Base URL（OpenAI 兼容）</span>
+              <Input value={aiBaseUrl} onChange={(e) => void setAiBaseUrl(e.target.value)} placeholder="https://example.com/v1" />
+            </div>
+          )}
+          <div className="grid gap-2">
+            <span className="text-sm">API Key {keyHint ? `（已保存 ${keyHint}）` : '（未保存）'}</span>
+            <div className="flex gap-2">
+              <Input type="password" value={keyInput} onChange={(e) => setKeyInput(e.target.value)} placeholder="sk-…" />
+              <Button variant="outline" disabled={!keyInput.trim()} onClick={() => void saveKey()}>保存</Button>
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button variant="outline" disabled={testing} onClick={() => void testConn()}>
+              {testing ? '测试中…' : '测试连接'}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
