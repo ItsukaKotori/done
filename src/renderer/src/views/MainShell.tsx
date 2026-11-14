@@ -37,7 +37,8 @@ export default function MainShell() {
     const off = window.api.onShowMain((p) => {
       if (p.quickAddDraft) {
         setNav('today');
-        setEditor({ open: true, draftTitle: p.quickAddDraft });
+        // parsed 字段 Task 11 接入编辑器预填，本任务仅修复编译取 title
+        setEditor({ open: true, draftTitle: p.quickAddDraft.title });
       } else if (p.focusTodo) {
         // 通知点击：切今日视图并携带定位信息（重置陈旧编辑态）
         setNav('today');

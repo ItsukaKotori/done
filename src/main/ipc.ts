@@ -9,6 +9,9 @@ import type { Exporter } from './services/exporter';
 import type { StatsService } from './services/stats';
 import type { SettingsDao } from './db/dao';
 import type { TodoDraft, OccurrenceQuery, OccurrenceStatus } from '@shared/types';
+import { AiParser } from './services/ai-parser';
+import { loadAiConfig } from './services/ai-settings';
+import { encryptKey, decryptKey, keyHintOf, type SafeStorageLike } from './services/ai-key-store';
 
 /** 由 Task 7 的 AppWindowController 实现（窗口编排对 IPC 层的全部需求） */
 export interface WindowOps {
@@ -34,6 +37,8 @@ export interface IpcDeps {
   settingsDao: SettingsDao;
   exporter: Exporter;
   stats: StatsService;
+  aiParser: AiParser;
+  safeStorage: SafeStorageLike;
   windows: WindowOps;
   onHotkeyChange: (acc: string) => boolean;
   onShowMainHotkeyChange: (acc: string) => boolean;
@@ -64,7 +69,7 @@ const wrapEv = (channel: string, fn: (e: Electron.IpcMainInvokeEvent, ...args: a
 };
 
 export function registerIpc(deps: IpcDeps): void {
-  const { todoService, scheduler, settingsDao, exporter, stats, windows, dataDir } = deps;
+  const { todoService, scheduler, settingsDao, exporter, stats, aiParser, safeStorage, windows, dataDir } = deps;
 
   wrap(Ipc.TodosList, (q: OccurrenceQuery) => todoService.list(q.from, q.to));
   wrap(Ipc.TodosListAll, (status: 'all' | 'open' | 'done') => todoService.listAll(status));
@@ -114,6 +119,19 @@ export function registerIpc(deps: IpcDeps): void {
   });
   wrap(Ipc.StatsSummary, () => stats.summary());
   wrap(Ipc.TodosHistory, (id: number, limit?: number) => todoService.occurrenceHistory(id, limit));
+
+  // 智能快添（Task 9）：parse/setKey/keyHint/testConnection；密钥只存 safeStorage 密文，出参只给尾 4 位提示
+  wrap(Ipc.AiParse, (input: string, today: string) =>
+    aiParser.parse(String(input), String(today), loadAiConfig(settingsDao, safeStorage)));
+  wrap(Ipc.AiSetKey, (key: string) => {
+    settingsDao.set('ai_key_enc', encryptKey(String(key), safeStorage));
+  });
+  wrap(Ipc.AiKeyHint, () => {
+    const enc = settingsDao.get<string>('ai_key_enc');
+    if (!enc) return null;
+    return keyHintOf(decryptKey(enc, safeStorage));
+  });
+  wrap(Ipc.AiTestConnection, () => aiParser.testConnection(loadAiConfig(settingsDao, safeStorage)));
 
   wrap(Ipc.SettingsGet, (key: string) => settingsDao.get(key));
   wrap(Ipc.SettingsSet, (key: string, value: unknown) => settingsDao.set(key, value));

@@ -62,6 +62,12 @@ const api: Api = {
   onShowMain: (cb) => on(Ipc.EventShowMain, (p: ShowMainPayload) => cb(p)),
   onQuickAddFocusInput: (cb) => on(Ipc.EventQuickAddFocusInput, cb),
   onStripState: (cb) => on(Ipc.EventStripState, (s: StripState) => cb(s)),
+  ai: {
+    parse: (input, today) => call(Ipc.AiParse, input, today),
+    setKey: (key) => call(Ipc.AiSetKey, key),
+    keyHint: () => call(Ipc.AiKeyHint),
+    testConnection: () => call(Ipc.AiTestConnection),
+  },
   stats: {
     summary: () => call(Ipc.StatsSummary),
   },

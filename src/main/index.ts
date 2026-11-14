@@ -1,4 +1,4 @@
-import { app, dialog, powerMonitor, session } from 'electron';
+import { app, dialog, powerMonitor, session, safeStorage } from 'electron';
 import { join } from 'node:path';
 import log from 'electron-log/main';
 import { openDb } from './db';
@@ -7,6 +7,7 @@ import { TodoService } from './services/todo-service';
 import { Scheduler } from './services/scheduler';
 import { Exporter } from './services/exporter';
 import { StatsService } from './services/stats';
+import { AiParser } from './services/ai-parser';
 import { registerIpc } from './ipc';
 import { AppWindowController, TrayManager } from './windows';
 import { IS_MAC } from './platform';
@@ -130,6 +131,8 @@ async function bootstrap(): Promise<void> {
     settingsDao,
     exporter,
     stats,
+    aiParser: new AiParser(),
+    safeStorage,
     windows,
     onHotkeyChange: (acc) => registerQuickAddShortcut(acc, quickAddCb),
     onShowMainHotkeyChange: (acc) => registerShowMainShortcut(acc, showMainCb),

@@ -3,6 +3,7 @@ import type {
 } from './types';
 import type { StatsSummary } from './stats';
 import type { OccurrenceHistory } from './history';
+import type { ParsedTask } from './parse';
 
 export const Ipc = {
   TodosList: 'todos:list',
@@ -45,6 +46,10 @@ export const Ipc = {
   StripToggle: 'win:strip-toggle',
   ExpandMain: 'win:expand-main',
   EventStripState: 'strip:state',
+  AiParse: 'ai:parse',
+  AiSetKey: 'ai:set-key',
+  AiKeyHint: 'ai:key-hint',
+  AiTestConnection: 'ai:test-connection',
 } as const;
 
 export type R<T> = { ok: true; data: T } | { ok: false; code: string; message: string };
@@ -72,9 +77,15 @@ export interface PreviewRequest {
   todoId?: number;
 }
 
+/** 快添窗 Ctrl+Enter 预填：title + AI 解析结果（parsed=null 时上层走规则兜底） */
+export interface QuickAddDraftPayload {
+  title: string;
+  parsed: ParsedTask | null;
+}
+
 export interface ShowMainPayload {
   focusTodo?: { todoId: number; date: string };
-  quickAddDraft?: string; // 快添窗 Ctrl+Enter 预填标题
+  quickAddDraft?: QuickAddDraftPayload;
   openSettings?: boolean; // mac 应用菜单「设置…」直达设置页
 }
 
@@ -131,6 +142,12 @@ export interface Api {
   onShowMain(cb: (p: ShowMainPayload) => void): () => void;
   onQuickAddFocusInput(cb: () => void): () => void;
   onStripState(cb: (state: StripState) => void): () => void;
+  ai: {
+    parse(input: string, today: string): Promise<ParsedTask>;
+    setKey(key: string): Promise<void>;
+    keyHint(): Promise<string | null>;
+    testConnection(): Promise<void>;
+  };
   stats: {
     summary(): Promise<StatsSummary>;
   };

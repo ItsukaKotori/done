@@ -248,7 +248,8 @@ export class AppWindowController implements WindowOps {
   closeQuickAdd(): void { this.quickAdd?.hide(); }
 
   openEditorFromQuickAdd(title: string): void {
-    this.showMain({ quickAddDraft: title }); // 主窗渲染层监听 EventShowMain 打开预填对话框
+    // parsed Task 11 接入 AI 解析结果，本任务先以 null 保持现状行为
+    this.showMain({ quickAddDraft: { title, parsed: null } }); // 主窗渲染层监听 EventShowMain 打开预填对话框
     this.quickAdd?.hide();
   }
 
