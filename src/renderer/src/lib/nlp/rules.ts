@@ -2,7 +2,7 @@
 import { emptyRepeat, type ParsedTask } from '@shared/parse';
 import type { Priority, RecurrenceSpec } from '@shared/types';
 import { normalizeTags } from '@shared/tags';
-import { addDays, weekdayOf, formatDate } from '@shared/recurrence';
+import { addDays, dateToNum, formatDate, weekdayOf } from '@shared/recurrence';
 
 // ---- 词表与正则（Task 3/4/5 会继续往这里加日期/时刻/重复模式）----
 
@@ -28,18 +28,16 @@ const WEEKDAY_CHAR: Record<string, number> = {
 
 const daysInMonth = (y: number, m: number) => new Date(y, m, 0).getDate();
 
-/** 非法月（>12）/非法日（如 2月30号）滚动到下一个有效年月 */
+/** 非法月/非法日（如 2月30号）滚动到下一个有效年月；日/月越界返回 ''（无效哨兵） */
 function resolveDate(y: number, m: number, day: number): string {
+  if (day < 1 || day > 31 || m < 1 || m > 12) return '';
   let yy = y, mm = m;
-  if (mm > 12) { yy += Math.floor((mm - 1) / 12); mm = ((mm - 1) % 12) + 1; }
   while (day > daysInMonth(yy, mm)) {
     mm += 1;
     if (mm > 12) { yy += 1; mm = 1; }
   }
   return formatDate(yy, mm, day);
 }
-
-const dateNum = (d: string) => Number(d.replaceAll('-', ''));
 
 /** 下一个 target 星期几；forceNextWeek 时保证落在下个日历周（周一为一周起点） */
 function nextWeekday(today: string, target: number, forceNextWeek: boolean): string {
@@ -60,7 +58,7 @@ const RE_DATE_PATTERNS: [RegExp, (m: RegExpMatchArray, today: string) => string]
     const [y, mo] = t.split('-').map(Number);
     const day = Number(m[1]);
     const cand = resolveDate(y, mo, day);
-    if (dateNum(cand) >= dateNum(t)) return cand;
+    if (dateToNum(cand) >= dateToNum(t)) return cand;
     const nm = mo === 12 ? 1 : mo + 1;
     const ny = mo === 12 ? y + 1 : y;
     return resolveDate(ny, nm, day);
@@ -74,12 +72,12 @@ const RE_DATE_PATTERNS: [RegExp, (m: RegExpMatchArray, today: string) => string]
   [/(\d{1,2})月(\d{1,2})[号日]/, (m, t) => {
     const y = Number(t.split('-')[0]);
     const d = resolveDate(y, Number(m[1]), Number(m[2]));
-    return dateNum(d) >= dateNum(t) ? d : resolveDate(y + 1, Number(m[1]), Number(m[2]));
+    return dateToNum(d) >= dateToNum(t) ? d : resolveDate(y + 1, Number(m[1]), Number(m[2]));
   }],
   [/(\d{1,2})\/(\d{1,2})/, (m, t) => {
     const y = Number(t.split('-')[0]);
     const d = resolveDate(y, Number(m[1]), Number(m[2]));
-    return dateNum(d) >= dateNum(t) ? d : resolveDate(y + 1, Number(m[1]), Number(m[2]));
+    return dateToNum(d) >= dateToNum(t) ? d : resolveDate(y + 1, Number(m[1]), Number(m[2]));
   }],
   [/[周星期礼拜]([一二三四五六日天])/, (m, t) => nextWeekday(t, WEEKDAY_CHAR[m[1]], false)],
 ];
@@ -88,7 +86,9 @@ function parseDate(rest: string, today: string): { dueDate: string | null; text:
   for (const [re, build] of RE_DATE_PATTERNS) {
     const m = rest.match(re);
     if (m) {
-      return { dueDate: build(m, today), text: rest.replace(m[0], ' ') };
+      const dueDate = build(m, today);
+      if (!dueDate) return { dueDate: null, text: rest }; // 非法值视为未命中，文本不消费、不再尝试后续模式
+      return { dueDate, text: rest.replace(m[0], ' ') };
     }
   }
   return { dueDate: null, text: rest };

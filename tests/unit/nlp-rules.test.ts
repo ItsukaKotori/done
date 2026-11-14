@@ -87,4 +87,12 @@ describe('日期', () => {
   it('日期从标题剥离', () => {
     expect(parseTaskInput('明天交报告', TODAY).title).toBe('交报告');
   });
+
+  it('非法日（99号/32号）不匹配也不死循环', () => {
+    const p1 = parseTaskInput('12月99号查账', TODAY);
+    expect(p1.dueDate).toBeNull();
+    expect(p1.title).toBe('12月99号查账'); // 文本不被消费
+    expect(parseTaskInput('11/32 结账', TODAY).dueDate).toBeNull();
+    expect(parseTaskInput('2026-99-99 备份', TODAY).dueDate).toBeNull();
+  });
 });
