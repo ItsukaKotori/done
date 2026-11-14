@@ -49,10 +49,31 @@ describe('AiParser.parse', () => {
     await expect(aiBad.parse('x', TODAY, CFG)).rejects.toMatchObject({ code: 'AI_BAD_OUTPUT' });
   });
 
+  it('res.json() 抛错 → AI_BAD_OUTPUT', async () => {
+    const f = vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.reject(new Error('stream broken')) }) as unknown as Response);
+    const ai = new AiParser(f as unknown as typeof fetch);
+    await expect(ai.parse('x', TODAY, CFG)).rejects.toMatchObject({ code: 'AI_BAD_OUTPUT' });
+  });
+
   it('超时 3s abort → AI_TIMEOUT', async () => {
     const f = vi.fn((_url: string, init?: RequestInit) => new Promise<Response>((_res, rej) => {
       init?.signal?.addEventListener('abort', () => rej(new DOMException('aborted', 'AbortError')));
     }));
+    const ai = new AiParser(f as unknown as typeof fetch);
+    await expect(ai.parse('x', TODAY, CFG)).rejects.toMatchObject({ code: 'AI_TIMEOUT' });
+  }, 10_000);
+
+  it('响应体停滞超过 3s → AI_TIMEOUT（计时覆盖 body 读取）', async () => {
+    let captured: RequestInit | undefined;
+    const f = vi.fn((_url: string, init?: RequestInit) => {
+      captured = init;
+      return Promise.resolve({
+        ok: true, status: 200,
+        json: () => new Promise<unknown>((_res, rej) => {
+          captured?.signal?.addEventListener('abort', () => rej(new DOMException('aborted', 'AbortError')));
+        }),
+      }) as unknown as Response;
+    });
     const ai = new AiParser(f as unknown as typeof fetch);
     await expect(ai.parse('x', TODAY, CFG)).rejects.toMatchObject({ code: 'AI_TIMEOUT' });
   }, 10_000);
@@ -63,6 +84,23 @@ describe('AiParser.parse', () => {
     await ai.parse('每周三五下午3点开周会', TODAY, CFG);
     await ai.parse('每周三五下午3点开周会', TODAY, CFG);
     expect(f).toHaveBeenCalledTimes(1);
+  });
+
+  it('缓存命中刷新 LRU 顺序（被刷新的条目不被逐出）', async () => {
+    const f = vi.fn((_url: string, init?: RequestInit) => Promise.resolve({
+      ok: true, status: 200,
+      json: async () => ({ choices: [{ message: { content: okAiJson } }] }),
+    }) as unknown as Response);
+    const ai = new AiParser(f as unknown as typeof fetch);
+    // 填满 20 条
+    for (let i = 0; i < 20; i++) await ai.parse(`任务${i}`, TODAY, CFG);
+    // 命中第 0 条（刷新其 LRU 位置），此时 fetch 总调用数 = 20
+    await ai.parse('任务0', TODAY, CFG);
+    // 再压入 1 条新输入 → 触发逐出；被刷新的 任务0 必须仍命中缓存
+    await ai.parse('任务20', TODAY, CFG);
+    const before = (f as ReturnType<typeof vi.fn>).mock.calls.length;
+    await ai.parse('任务0', TODAY, CFG);
+    expect((f as ReturnType<typeof vi.fn>).mock.calls.length).toBe(before);
   });
 });
 
