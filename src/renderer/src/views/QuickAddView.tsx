@@ -15,6 +15,7 @@ export default function QuickAddView() {
   const seqRef = useRef(0);
   const failToastedRef = useRef(false);
   const providerLabelRef = useRef('AI');
+  const aiEnabledRef = useRef(false);
 
   // 快添窗每次唤起：清输入、作废在途 AI 响应（重开即新会话，防止旧结果写进已清空的输入框）
   useEffect(
@@ -35,13 +36,16 @@ export default function QuickAddView() {
     [],
   );
 
-  // 快添窗每次唤起刷新 provider label（徽章文案，spec §6）
+  // 快添窗每次唤起刷新 provider label（徽章文案，spec §6）与启用开关（spec §1/§6：未启用不发 IPC）
   useEffect(
     () =>
       window.api.onQuickAddFocusInput(() => {
         void window.api.settings.get<string>('ai_provider').then((id) => {
           providerLabelRef.current =
             AI_PROVIDERS.find((p) => p.id === id)?.label ?? 'AI';
+        });
+        void window.api.settings.get<boolean>('ai_enabled').then((v) => {
+          aiEnabledRef.current = v === true;
         });
       }),
     [],
@@ -51,6 +55,7 @@ export default function QuickAddView() {
   const scheduleAi = () => {
     const v = inputRef.current?.value ?? '';
     if (aiTimerRef.current) clearTimeout(aiTimerRef.current);
+    if (!aiEnabledRef.current) return; // 未启用 AI：不发 IPC、不 toast（spec §1/§6）
     const seq = ++seqRef.current;
     if (!v.trim()) return;
     aiTimerRef.current = setTimeout(() => {
@@ -62,8 +67,11 @@ export default function QuickAddView() {
             setAiBadge(providerLabelRef.current);
           }
         })
-        .catch(() => {
-          // 静默降级：保留规则结果；每次会话首败提示一次
+        .catch((e) => {
+          if (seqRef.current !== seq) return; // 已被更新的输入取代：不写状态、不花会话 toast
+          const code = (e as { code?: string } | undefined)?.code;
+          // 未启用/未配置属预期状态，静默降级（spec §7：toast 只留给超时/网络/鉴权/非法输出）
+          if (code === 'AI_DISABLED' || code === 'AI_NOT_CONFIGURED') return;
           if (!failToastedRef.current) {
             failToastedRef.current = true;
             toast.info('AI 增强暂不可用，已使用本地解析');
@@ -172,9 +180,10 @@ function repeatLabel(r: ParsedTask['repeat']): string {
     case 'daily': return '每天';
     case 'weekly': return `每周 ${(r.repeatWeekdays ?? []).map((d) => W[d]).join('/')}`;
     case 'monthly':
+      // ?? 兜底：AI 输出 by_weekday 缺 which/weekday 时渲染安全文案而非「第null个」
       return r.monthlyMode === 'by_weekday'
-        ? `每月第${r.monthlyWhich === 5 ? '最后一个' : r.monthlyWhich}个周${W[r.monthlyWeekday ?? 1]}`
-        : `每月${r.monthlyDay}号`;
+        ? `每月第${r.monthlyWhich === 5 ? '最后一个' : r.monthlyWhich ?? 1}个周${W[r.monthlyWeekday ?? 1]}`
+        : `每月${r.monthlyDay ?? 1}号`;
     case 'custom': return `每${r.repeatInterval}天`;
     default: return '';
   }

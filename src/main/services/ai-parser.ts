@@ -31,19 +31,25 @@ export function validateParsed(raw: unknown, _today: string): ParsedTask | null 
   const prioRaw = asInt(o.priority);
   const priority: Priority = prioRaw === 0 || prioRaw === 2 ? prioRaw : 1;
 
+  // 剥离 AI 可能带回的前导 #（与规则路径一致，避免 ##工作 双井号 chip）
   const tags = Array.isArray(o.tags)
-    ? [...new Set(o.tags.filter((t): t is string => typeof t === 'string' && t.trim() !== '').map((t) => t.trim()))]
+    ? [...new Set(o.tags
+        .filter((t): t is string => typeof t === 'string')
+        .map((t) => t.trim().replace(/^#+/, ''))
+        .filter((t) => t !== ''))]
     : [];
 
   const r = (typeof o.repeat === 'object' && o.repeat !== null ? o.repeat : {}) as Record<string, unknown>;
-  const repeatType = REPEAT_TYPES.includes(r.repeatType as RepeatType) ? (r.repeatType as RepeatType) : 'none';
+  const repeatTypeRaw = REPEAT_TYPES.includes(r.repeatType as RepeatType) ? (r.repeatType as RepeatType) : 'none';
   const weekdays = Array.isArray(r.repeatWeekdays)
     ? [...new Set(r.repeatWeekdays.filter((n) => asInt(n) !== null && (n as number) >= 0 && (n as number) <= 6).map((n) => n as number))].sort((a, b) => a - b)
     : null;
+  // weekly 但无有效 weekdays 会成为永不发生的任务 → 降级为一次性
+  const repeatType: RepeatType = repeatTypeRaw === 'weekly' && (!weekdays || weekdays.length === 0) ? 'none' : repeatTypeRaw;
   const repeat = {
     ...emptyRepeat(), repeatType,
     repeatInterval: repeatType === 'custom' ? Math.max(2, asInt(r.repeatInterval) ?? 2) : null,
-    repeatWeekdays: repeatType === 'weekly' ? (weekdays && weekdays.length > 0 ? weekdays : null) : null,
+    repeatWeekdays: repeatType === 'weekly' ? weekdays : null,
     monthlyMode: ((): MonthlyMode | null => {
       const m = r.monthlyMode;
       return m === 'by_date' || m === 'by_weekday' ? m : null;

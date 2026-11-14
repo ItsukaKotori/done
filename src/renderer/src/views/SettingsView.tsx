@@ -93,7 +93,8 @@ export default function SettingsView() {
   const [keyHint, setKeyHint] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
   useEffect(() => {
-    void window.api.ai.keyHint().then(setKeyHint);
+    // 失败（如 key 解密异常）静默回落未保存态，不进全局 unhandledrejection toast
+    window.api.ai.keyHint().then(setKeyHint).catch(() => setKeyHint(null));
   }, []);
 
   const preset = AI_PROVIDERS.find((p) => p.id === aiProvider) ?? AI_PROVIDERS[0];

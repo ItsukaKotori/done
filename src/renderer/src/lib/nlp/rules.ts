@@ -8,7 +8,7 @@ import { addDays, dateToNum, formatDate, occursOn, weekdayOf } from '@shared/rec
 
 const RE_TAG = /#([^\s#]+)/g;
 const RE_PRIO_HIGH = /(?<!不)(?:高优先级|紧急|加急|重要)/g;
-const RE_PRIO_LOW = /低优先级|不紧急|不急/g;
+const RE_PRIO_LOW = /低优先级|不紧急|不急|有空再说/g;
 const RE_PRIO_NEG = /不重要/g; // 否定词：不影响优先级，仅从文本剥离（不紧急 由 LOW 分支处理）
 
 const stripMatches = (s: string, re: RegExp): string =>
@@ -163,8 +163,9 @@ function parseDate(rest: string, today: string): { dueDate: string | null; text:
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
-const RE_TIME = /(早上|上午|中午|下午|傍晚|晚上)?\s*(\d{1,2})点(?:(\d{1,2})分|(半))?/;
-const RE_TIME_HM = /(\d{1,2}):(\d{2})/;
+// (?<!\d)：防止数字串粘连误判（123点/123:45 不再被读成 23点/23:45）
+const RE_TIME = /(早上|上午|中午|下午|傍晚|晚上)?\s*(?<!\d)(\d{1,2})点(?:(\d{1,2})分|(半))?/;
+const RE_TIME_HM = /(?<!\d)(\d{1,2})[时:](\d{2})分?/; // spec §3.1：HH时mm分 与 HH:mm 同列（时分 的 分 可省）
 
 function parseTime(rest: string): { timeOfDay: string | null; text: string } {
   const hm = rest.match(RE_TIME_HM);

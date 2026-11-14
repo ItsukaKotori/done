@@ -205,3 +205,89 @@ describe('重复', () => {
     expect(p.startDate).toBe('2026-11-15');
   });
 });
+
+describe('规格 §8 补充模式（Task 11 评审）', () => {
+  it('次日 = 明天', () => {
+    expect(parseTaskInput('次日交付', TODAY).dueDate).toBe('2026-11-15');
+    expect(parseTaskInput('次日交付', TODAY).title).toBe('交付');
+  });
+
+  it('礼拜X 日期形与周X一致', () => {
+    expect(parseTaskInput('礼拜六聚会', TODAY).dueDate).toBe('2026-11-14'); // 今天周六
+    expect(parseTaskInput('礼拜二复诊', TODAY).dueDate).toBe('2026-11-17');
+  });
+
+  it('每日 = 每天', () => {
+    const p = parseTaskInput('每日冥想', TODAY);
+    expect(p.repeat.repeatType).toBe('daily');
+    expect(p.title).toBe('冥想');
+  });
+
+  it('每礼拜三 亦识别为 weekly', () => {
+    const p = parseTaskInput('每礼拜三晨会', TODAY);
+    expect(p.repeat.repeatType).toBe('weekly');
+    expect(p.repeat.repeatWeekdays).toEqual([3]);
+  });
+
+  it('每周多日：和/与分隔符', () => {
+    expect(parseTaskInput('每周三和五健身', TODAY).repeat.repeatWeekdays).toEqual([3, 5]);
+    expect(parseTaskInput('每周二与四例会', TODAY).repeat.repeatWeekdays).toEqual([2, 4]);
+  });
+
+  it('每1天/每0天 不成立 → 落回标题', () => {
+    const p = parseTaskInput('每1天汇报进展', TODAY);
+    expect(p.repeat.repeatType).toBe('none');
+    expect(p.repeat.repeatInterval).toBeNull();
+    expect(p.title).toBe('每1天汇报进展');
+    expect(parseTaskInput('每0天打卡', TODAY).title).toBe('每0天打卡');
+  });
+
+  it('每7天 custom', () => {
+    const p = parseTaskInput('每7天换滤芯', TODAY);
+    expect(p.repeat.repeatType).toBe('custom');
+    expect(p.repeat.repeatInterval).toBe(7);
+  });
+
+  it('HH时mm分 中文时刻', () => {
+    expect(parseTaskInput('15时30分验收', TODAY).timeOfDay).toBe('15:30');
+    expect(parseTaskInput('15时30分验收', TODAY).title).toBe('验收');
+    expect(parseTaskInput('9时05分播报', TODAY).timeOfDay).toBe('09:05');
+  });
+
+  it('HH时mm分 越界不命中', () => {
+    const p = parseTaskInput('25时70分运维', TODAY);
+    expect(p.timeOfDay).toBeNull();
+    expect(p.title).toBe('25时70分运维');
+  });
+
+  it('X点X分 无时段词', () => {
+    expect(parseTaskInput('12点30分吃饭', TODAY).timeOfDay).toBe('12:30');
+  });
+
+  it('数字串粘连不误判时刻（123点）', () => {
+    const p = parseTaskInput('工单123点处理', TODAY);
+    expect(p.timeOfDay).toBeNull();
+    expect(p.title).toBe('工单123点处理');
+  });
+
+  it('数字串粘连不误判 HH:mm（123:45）', () => {
+    const p = parseTaskInput('版本123:45发布', TODAY);
+    expect(p.timeOfDay).toBeNull();
+    expect(p.title).toBe('版本123:45发布');
+  });
+
+  it('有空再说 → 0 并剥离', () => {
+    const p = parseTaskInput('整理相册 有空再说', TODAY);
+    expect(p.priority).toBe(0);
+    expect(p.title).toBe('整理相册');
+  });
+
+  it('混合输入全字段', () => {
+    const p = parseTaskInput('明天下午3点交报告 紧急 #工作', TODAY);
+    expect(p.title).toBe('交报告');
+    expect(p.dueDate).toBe('2026-11-15');
+    expect(p.timeOfDay).toBe('15:00');
+    expect(p.priority).toBe(2);
+    expect(p.tags).toEqual(['工作']);
+  });
+});
